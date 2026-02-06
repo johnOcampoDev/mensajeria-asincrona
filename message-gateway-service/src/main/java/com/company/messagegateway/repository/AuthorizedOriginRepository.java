@@ -8,5 +8,5 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface AuthorizedOriginRepository extends JpaRepository<AuthorizedOrigin, Long> {
 
-	boolean existsByOrigin(String origin);
+	boolean existsByOriginCodeAndEnabledTrue(String originCode);
 }

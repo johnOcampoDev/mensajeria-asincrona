@@ -17,7 +17,10 @@ public class AuthorizedOrigin {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	@Column(unique = true, nullable = false)
-	private String origin;
+	@Column(name = "origin_code", nullable = false, unique = true)
+	private String originCode;
 
+	private String description;
+
+	private boolean enabled = true;
 }

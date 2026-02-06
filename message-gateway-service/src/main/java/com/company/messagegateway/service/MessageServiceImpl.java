@@ -21,8 +21,8 @@ public class MessageServiceImpl implements MessageService {
 	@Override
 	public void processAndSend(MessageRequestDTO request) {
 
-		if (!originRepository.existsByOrigin(request.getOrigin())) {
-			throw new OriginNotAuthorizedException("Origin not authorized");
+		if (!originRepository.existsByOriginCodeAndEnabledTrue(request.getOrigin())) {
+			throw new OriginNotAuthorizedException("Origin not authorized: "+request.getOrigin());
 		}
 
 		messagePublisher.publish(request);
