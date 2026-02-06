@@ -159,17 +159,13 @@ El processor calcula la **latencia end-to-end**, desde recepción REST hasta per
 docker-compose up --build
 ```
 
-Accesos
+**Accesos**
 
-Gateway API: <http://localhost:8080>
-
-Processor API: <http://localhost:8081>
-
-RabbitMQ UI: <http://localhost:15672>
-
-user: guest
-
-pass: guest
+- Gateway API: <http://localhost:8080>
+- Processor API: <http://localhost:8081>
+- RabbitMQ UI: <http://localhost:15672>
+- user: guest
+- pass: guest
 
 ---
 
@@ -177,43 +173,34 @@ pass: guest
 
 El gateway utiliza API Key configurable mediante properties para proteger los endpoints REST.
 
-Ejemplo:
+**Ejemplo:**
 
 security.api-key=CHANGE_ME_SECURE_KEY
 
-🧪 Manejo de errores
-Errores de serialización o negocio:
+## 🧪 Manejo de errores
 
-Se persisten en MongoDB
+**Errores de serialización o negocio:**
 
-Se envía el mensaje a la Dead Letter Queue
-
-No se pierde información
-
-El sistema es auditable
+- Se persisten en MongoDB
+- Se envía el mensaje a la Dead Letter Queue
+- No se pierde información
+- El sistema es auditable
 
 ## 🎯 Decisiones clave
 
-Arquitectura asíncrona para desacoplar recepción y procesamiento
-
-Separación clara entre validación (MySQL) y persistencia de mensajes (MongoDB)
-
-ACK manual en RabbitMQ para control explícito
-
-DLQ para manejo de errores
-
-Microservicios independientes y escalables
+- Arquitectura asíncrona para desacoplar recepción y procesamiento
+- Separación clara entre validación (MySQL) y persistencia de mensajes (MongoDB)
+- ACK manual en RabbitMQ para control explícito
+- DLQ para manejo de errores
+- Microservicios independientes y escalables
 
 ## 📌 Consideraciones finales
 
-Esta solución está diseñada para:
+**Esta solución está diseñada para:**
 
-Alta extensibilidad
-
-Facilidad de despliegue
-
-Claridad arquitectónica
-
-Escenarios reales de mensajería
+- Alta extensibilidad
+- Facilidad de despliegue
+- Claridad arquitectónica
+- Escenarios reales de mensajería
 
 ---
