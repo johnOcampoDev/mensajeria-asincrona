@@ -1,0 +1,79 @@
+version: "3.9"
+
+services:
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mysql:
+    image: mysql:8.4
+    container_name: mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: messages_db
+      MYSQL_USER: app_user
+      MYSQL_PASSWORD: app_pass
+    command: --default-authentication-plugin=mysql_native_password
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    
+  mongodb:
+        image: mongo:7
+        container_name: mongodb
+        ports:
+        - "27017:27017"
+        volumes:
+        - mongo_data:/data/db
+
+  message-gateway:
+    build:
+      context: ./message-gateway-service
+    container_name: message-gateway-service
+    ports:
+      - "8080:8080"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    restart: unless-stopped
+
+  message-processor:
+    build:
+      context: ./message-processor-service
+    container_name: message-processor-service
+    ports:
+      - "8081:8081"
+    depends_on:
+       rabbitmq:
+        condition: service_healthy
+       mongodb:
+        condition: service_started
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  mongo_data:
