@@ -11,11 +11,14 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "check_running"]
       interval: 10s
       timeout: 5s
       retries: 5
+
 
   mysql:
     image: mysql:8.4
@@ -77,3 +80,4 @@ services:
 volumes:
   mysql_data:
   mongo_data:
+  rabbitmq_data:
