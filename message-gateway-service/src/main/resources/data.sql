@@ -1,4 +1,4 @@
-INSERT INTO authorized_origins (origin_code, description, enabled) VALUES
+INSERT INTO messages_db.authorized_origins (origin_code, description, enabled) VALUES
 ('1111', 'Sistema A', true),
 ('2222', 'Sistema B', true),
 ('3333', 'Sistema C', true),
