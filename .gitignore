@@ -1,0 +1,64 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.prod
+.env.production
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+*.swp
+*.swo
+*~
+
+# Build
+target/
+build/
+.gradle/
+.mvn/wrapper/maven-wrapper.jar
+
+# Maven
+!**/src/main/**/target/
+!**/src/test/**/target/
+*.class
+
+# Spring Boot
+*.jar
+*.war
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
+
+# Certs and keys
+*.pem
+*.key
+*.crt
+*.cert
+*.p12
+*.pfx
+
+# Temp
+temp/
+tmp/

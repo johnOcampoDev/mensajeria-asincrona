@@ -2,6 +2,8 @@ package com.company.messageprocessor.model;
 
 import java.time.Instant;
 
+import com.company.messageprocessor.dto.MessageType;
+
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -28,7 +30,7 @@ public class MessageDocument {
 
     private String origin;
     private String destination;
-    private String messageType;
+    private MessageType messageType;
     private String content;
 
     private long processingTime;

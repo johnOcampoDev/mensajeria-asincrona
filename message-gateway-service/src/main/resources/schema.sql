@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS authorized_origins (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    origin_code VARCHAR(255) NOT NULL UNIQUE,
+    description VARCHAR(255),
+    enabled BOOLEAN NOT NULL DEFAULT TRUE
+);

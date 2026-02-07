@@ -9,7 +9,7 @@ import jakarta.persistence.Table;
 import lombok.Data;
 
 @Entity
-@Table(name = "messages_db.authorized_origins")
+@Table(name = "authorized_origins")
 @Data
 public class AuthorizedOrigin {
 
