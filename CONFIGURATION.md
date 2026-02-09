@@ -16,250 +16,110 @@ El `docker-compose.yml` ahora usa variables de entorno para todas las credencial
 cp .env.example .env
 ```
 
-Luego edita `.env` con tus valores reales:
+# CONFIGURATION
 
-```env
+Documento actualizado para describir la configuración real del proyecto "mensajería-asincrona".
+
+**Servicios principales**
+- `message-gateway-service` (puerto 8080)
+- `message-processor-service` (puerto 8081)
+- `rabbitmq` (AMQP 5672, Management 15672)
+- `mysql` (MySQL 3306) — base de datos `authorized_origins`
+- `mongodb` (MongoDB 27017) — base de datos `messages_db`
+
+Todos los servicios están orquestados por `docker-compose.yml` en la raíz.
+
+**Archivo con variables de entorno**: usa un `.env` local (no incluido en git). Ejemplo: copia y edita según necesites.
+
+Ejemplo mínimo de variables relevantes (.env):
+
+```
 # RabbitMQ
 RABBITMQ_DEFAULT_USER=guest
-RABBITMQ_DEFAULT_PASS=tu_contraseña_segura_aqui
+RABBITMQ_DEFAULT_PASS=guest
 
 # MySQL
-MYSQL_ROOT_PASSWORD=tu_contraseña_root_aqui
+MYSQL_ROOT_PASSWORD=root
 MYSQL_DATABASE=authorized_origins
 MYSQL_USER=app_user
-MYSQL_PASSWORD=tu_contraseña_app_user_aqui
+MYSQL_PASSWORD=app_pass
 
 # MongoDB
 MONGO_INITDB_ROOT_USERNAME=mongo_admin
-MONGO_INITDB_ROOT_PASSWORD=tu_contraseña_mongo_aqui
+MONGO_INITDB_ROOT_PASSWORD=mongo_password
 MONGO_DATABASE=messages_db
 
-# API Key (Gateway)
-SECURITY_API_KEY=tu_api_key_segura_aqui_minimo_32_caracteres
-
-# Logging
-LOG_LEVEL=INFO
+# API key para Gateway
+SECURITY_API_KEY=CHANGE_ME_SECURE_KEY
 ```
 
----
+**docker-compose** (resumen importante)
+- Los servicios y las variables usadas en `docker-compose.yml` son las mostradas arriba. Los valores por defecto están también definidos en el `docker-compose.yml`.
+- Los containers exponen puertos locales: `5672`, `15672`, `3306`, `27017`, `8080`, `8081`.
+- `message-gateway` depende de `rabbitmq` y `mysql` (healthchecks configurados).
+- `message-processor` depende de `rabbitmq` y `mongodb`.
 
-## 🔐 Credenciales por Servicio
+Configuraciones específicas de las aplicaciones
 
-### RabbitMQ
-| Variable | Valor Defecto | Ubicación |
-|----------|---|---|
-| `RABBITMQ_DEFAULT_USER` | `guest` | docker-compose.yml |
-| `RABBITMQ_DEFAULT_PASS` | `guest` | docker-compose.yml |
+- `message-gateway-service` (archivos: [message-gateway-service/src/main/resources/application-docker.properties](message-gateway-service/src/main/resources/application-docker.properties#L1))
+  - Puerto: 8080
+  - MySQL: `jdbc:mysql://mysql:3306/authorized_origins`
+  - RabbitMQ host: `rabbitmq`, puerto `5672`
+  - Exchange: `message.exchange`
+  - Routing key: `message.routing.key`
+  - Seguridad: propiedad `security.api-key` tomada de `${SECURITY_API_KEY}`. El filtro espera el header `Authorization: Bearer <API_KEY>` (ver `ApiKeyFilter`).
+  - Inicialización de la tabla de orígenes en `src/main/resources/schema.sql` y `data.sql`.
 
-**Puerto:** 5672 (AMQP), 15672 (Management UI)  
-**URL Management:** http://localhost:15672
+- `message-processor-service` (archivos: [message-processor-service/src/main/resources/application-docker.properties](message-processor-service/src/main/resources/application-docker.properties#L1))
+  - Puerto: 8081
+  - MongoDB URI por defecto apunta a `mongodb:27017` y usa la base `messages_db`.
+  - RabbitMQ host: `rabbitmq`, puerto `5672`.
+  - Queue: configurada vía `rabbitmq.queue.name` con valor por defecto `message.queue`.
+  - Exchange: `message.exchange` y DLX `message.dlx`. Dead letter queue: `message.dlq`.
 
----
+Seguridad y acceso
 
-### MySQL (Message Gateway)
-| Variable | Valor Defecto | Ubicación |
-|----------|---|---|
-| `MYSQL_ROOT_PASSWORD` | `root` | docker-compose.yml |
-| `MYSQL_USER` | `app_user` | docker-compose.yml |
-| `MYSQL_PASSWORD` | `app_pass` | docker-compose.yml |
-| `MYSQL_DATABASE` | `authorized_origins` | docker-compose.yml |
+- API Key Gateway: el `ApiKeyFilter` valida exactamente el header `Authorization` con el formato `Bearer <clave>` y la compara con la propiedad `security.api-key` cargada desde `application-docker.properties` o la variable `SECURITY_API_KEY` proporcionada por el entorno.
+- El `message-processor` mantiene credenciales internas de management en `application.properties` pero está pensado como servicio interno (seguridad mínima en desarrollo).
 
-**Puerto:** 3306  
-**Usuario App:** `app_user` / `${MYSQL_PASSWORD}`  
-**Base de datos:** `authorized_origins`
+Colas y routing
 
-**Conexión desde Gateway:**
-```properties
-spring.datasource.url=jdbc:mysql://mysql:3306/authorized_origins
-spring.datasource.username=${SPRING_DATASOURCE_USERNAME}
-spring.datasource.password=${SPRING_DATASOURCE_PASSWORD}
-```
+- Exchange principal: `message.exchange` (DirectExchange).
+- Queue principal: `message.queue` (durable) enlazada con routing key `message.routing.key`.
+- Dead letter exchange: `message.dlx` y dead letter queue `message.dlq` con routing key `message.dlq`.
 
----
+Endpoints útiles
 
-### MongoDB (Message Processor)
-| Variable | Valor Defecto | Ubicación |
-|----------|---|---|
-| `MONGO_INITDB_ROOT_USERNAME` | `mongo_admin` | docker-compose.yml |
-| `MONGO_INITDB_ROOT_PASSWORD` | `mongo_password` | docker-compose.yml |
-| `MONGO_DATABASE` | `messages_db` | docker-compose.yml |
+- RabbitMQ management UI: http://localhost:15672
+- Gateway Swagger UI: http://localhost:8080/swagger-ui.html
+- Processor Swagger UI: http://localhost:8081/swagger-ui.html
+- Actuator health Gateway: `http://localhost:8080/actuator/health`
 
-**Puerto:** 27017  
-**Usuario Root:** `mongo_admin` / `${MONGO_INITDB_ROOT_PASSWORD}`  
-**Base de datos:** `messages_db`
+Cómo ejecutar localmente (desarrollo)
 
-**Conexión desde Processor:**
-```properties
-spring.data.mongodb.uri=mongodb://${SPRING_DATA_MONGODB_USERNAME}:${SPRING_DATA_MONGODB_PASSWORD}@mongodb:27017/${SPRING_DATA_MONGODB_DATABASE}?authSource=admin
-```
+1. Crear `.env` a partir de tu plantilla y cambiar secretos.
+2. Ejecutar:
 
----
-
-## 🔑 API Key (Gateway Security)
-
-### Configuración
-| Propiedad | Valor Defecto | Ubicación |
-|----------|---|---|
-| `security.api-key` | `CHANGE_ME_SECURE_KEY` | application-docker.properties |
-| `SECURITY_API_KEY` | Variable de entorno | docker-compose.yml |
-
-### Uso
-Para llamar a los endpoints del Gateway, incluye el header:
-```bash
-curl -X POST http://localhost:8080/api/v1/messages \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{...}'
-```
-
-**Cambiar la API Key:**
-1. Edita el archivo `.env`
-2. Establece `SECURITY_API_KEY=tu_clave_nueva`
-3. Reinicia los contenedores: `docker-compose up -d`
-
----
-
-## 📱 Aplicaciones Spring Boot
-
-### Message Gateway (Puerto 8080)
-
-**Variables de entorno disponibles:**
-```env
-SPRING_DATASOURCE_USERNAME=app_user
-SPRING_DATASOURCE_PASSWORD=app_pass
-SPRING_RABBITMQ_USERNAME=guest
-SPRING_RABBITMQ_PASSWORD=guest
-SECURITY_API_KEY=tu_api_key_aqui
-```
-
-**Archivo de configuración:** `application-docker.properties`
-
----
-
-### Message Processor (Puerto 8081)
-
-**Variables de entorno disponibles:**
-```env
-SPRING_RABBITMQ_USERNAME=guest
-SPRING_RABBITMQ_PASSWORD=guest
-SPRING_DATA_MONGODB_USERNAME=mongo_admin
-SPRING_DATA_MONGODB_PASSWORD=mongo_password
-SPRING_DATA_MONGODB_DATABASE=messages_db
-```
-
-**Archivo de configuración:** `application-docker.properties`
-
----
-
-## 🚀 Ejecutar con variables de entorno
-
-### Opción 1: Con archivo `.env`
 ```bash
 docker-compose up --build
 ```
-Docker Compose cargará automáticamente las variables del archivo `.env`
 
-### Opción 2: Con variables en línea
-```bash
-export RABBITMQ_DEFAULT_USER=tu_usuario
-export RABBITMQ_DEFAULT_PASS=tu_contraseña
-export MYSQL_ROOT_PASSWORD=tu_pass_root
-export MYSQL_USER=app_user
-export MYSQL_PASSWORD=tu_pass_app
-export MONGO_INITDB_ROOT_USERNAME=mongo_admin
-export MONGO_INITDB_ROOT_PASSWORD=tu_pass_mongo
-export SECURITY_API_KEY=tu_api_key_segura
+O cargar explícitamente el env-file:
 
-docker-compose up --build
-```
-
-### Opción 3: Línea de comando completa
 ```bash
 docker-compose --env-file .env up --build
 ```
 
----
+Buenas prácticas
 
-## 📝 Consideraciones de Seguridad
+- No commitear archivos `.env` con credenciales reales. Añade `.env` a `.gitignore`.
+- Para producción, usa un gestor de secretos (Vault, AWS Secrets Manager, etc.) y no variables en texto plano.
+- Rotar claves/contraseñas periódicamente y limitar permisos en DBs.
 
-### ⚠️ Para Desarrollo
+Referencias
 
-Las credenciales en este archivo son adecuadas para **desarrollo local**.
-
-### 🔒 Para Producción
-
-**NO hagas commit del archivo `.env`** con contraseñas reales.
-
-```bash
-# .gitignore
-.env
-.env.local
-.env.*.local
-```
-
-Recomendaciones para producción:
-1. Usa **gestores de secretos** (AWS Secrets Manager, Azure Key Vault, Vault, etc.)
-2. Inyecta variables desde CI/CD (GitHub Actions, GitLab CI, etc.)
-3. Usa **credenciales aleatorias** generadas por tu plataforma
-4. Aplica **rotación periódica** de contraseñas
-5. Monitorea accesos a credenciales
-
----
-
-## 📊 Matriz de Credenciales
-
-```
-┌─────────┬──────────────┬─────────────────┬─────────────────────────┐
-│ Servicio│ Usuario      │ Contraseña      │ Ubicación               │
-├─────────┼──────────────┼─────────────────┼─────────────────────────┤
-│ RabbitMQ│ guest        │ guest_secure    │ RABBITMQ_DEFAULT_PASS   │
-│ MySQL   │ root         │ root_secure     │ MYSQL_ROOT_PASSWORD     │
-│ MySQL   │ app_user     │ app_pass_secure │ MYSQL_PASSWORD          │
-│ MongoDB │ mongo_admin  │ mongo_secure    │ MONGO_INITDB_ROOT_PASS  │
-│ Gateway │ API Key      │ api_key_secure  │ SECURITY_API_KEY        │
-└─────────┴──────────────┴─────────────────┴─────────────────────────┘
-```
-
----
-
-## ✅ Checklist de Seguridad
-
-- [ ] Copié `.env.example` a `.env` y cambié todas las contraseñas
-- [ ] Verifiqué que `.env` está en `.gitignore`
-- [ ] Cambié `SECURITY_API_KEY` a un valor único
-- [ ] Cambié las contraseñas por defecto de RabbitMQ y MySQL
-- [ ] Cambié las credenciales de MongoDB
-- [ ] Probé la conexión: `docker-compose up --build`
-- [ ] Verifiqué que los servicios están saludables
-- [ ] Probé la API con la nueva API Key
-
----
-
-## 🔗 Conexiones de Servicios
-
-```
-Client
-  │
-  ├─→ Gateway (8080) [RabbitMQ guest/pass, MySQL app_user/pass, API Key]
-  │      │
-  │      └─→ RabbitMQ (5672)
-  │           │
-  │           └─→ Processor (8081) [RabbitMQ guest/pass, MongoDB mongo_admin/pass]
-  │                 │
-  │                 └─→ MongoDB (27017)
-  │
-  └─→ Management UIs
-       ├─ RabbitMQ: http://localhost:15672 (guest/pass)
-       ├─ Gateway Swagger: http://localhost:8080/swagger-ui.html
-       └─ Processor Swagger: http://localhost:8081/swagger-ui.html
-```
-
----
-
-## 📚 Referencias
-
-- [Docker Compose Environment Variables](https://docs.docker.com/compose/environment-variables/)
-- [Spring Boot Externalized Configuration](https://docs.spring.io/spring-boot/docs/current/reference/html/features.html#features.external-config)
-- [RabbitMQ Documentation](https://www.rabbitmq.com/documentation.html)
-- [MySQL Docker Docs](https://hub.docker.com/_/mysql)
-- [MongoDB Docker Docs](https://hub.docker.com/_/mongo)
+- `docker-compose.yml` (raíz)
+- `message-gateway-service/src/main/resources/application-docker.properties` (configuración Gateway)
+- `message-processor-service/src/main/resources/application-docker.properties` (configuración Processor)
+- `message-gateway-service/src/main/java/com/company/messagegateway/config/RabbitConfig.java` (exchange y conversor)
+- `message-processor-service/src/main/java/com/company/messageprocessor/config/RabbitMQInfraConfig.java` (queues/bindings)
